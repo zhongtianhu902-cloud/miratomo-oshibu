@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>みらとも推し部</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      text-align: center;
+      padding: 24px 16px;
+      color: #222;
+      background: #fff;
+    }
+    .btn {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 14px 28px;
+      background: #06c755;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    #status { color: #666; font-size: 14px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <h2>みらとも推し部</h2>
+  <p>応援ありがとうございます。<br>下のボタンから「みらとも推し部」を友だち追加してください。<br>みたらい ともひろ の活動や動画をお届けします。</p>
+  <div id="status">読み込み中です…</div>
+  <a id="addFriendBtn" class="btn" style="display:none" href="https://line.me/R/ti/p/@811gdatk" target="_blank">
+    友だち追加する
+  </a>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    // このページは GitHub Pages に置く。LINE Developers の LIFFアプリの「エンドポイントURL」をこのページのURLにする。
+    // (以前は GAS の中にページを置いていたが、GASはページを別ドメインの枠の中に表示するため LIFF が正しく動かなかった)
+    const LIFF_ID = '2011678960-D354eYiS';
+    // GAS の WebアプリURL(…/exec)。仮登録の送り先
+    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbywzB3mv-Yhi27Uadf2X8L9M8_08d3BNn78XaX6xsLgbuliiDZ9-XVCW9YOhmUBQjzo/exec';
+
+    const statusEl = document.getElementById('status');
+    const btnEl = document.getElementById('addFriendBtn');
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    // 紹介元コード。LINEログインで画面が切り替わっても失われないよう、一時的にブラウザにも控えておく
+    function readRef() {
+      const fromUrl = new URLSearchParams(location.search).get('ref');
+      try {
+        if (fromUrl) sessionStorage.setItem('ref', fromUrl);
+        return fromUrl || sessionStorage.getItem('ref') || '';
+      } catch (e) {
+        return fromUrl || '';
+      }
+    }
+
+    async function main() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        const ref = readRef();
+        if (!liff.isLoggedIn()) {
+          liff.login({ redirectUri: location.href });
+          return; // ログイン後にこのページが再読み込みされる
+        }
+
+        // ユーザーIDではなくアクセストークンを送り、GAS側でLINEに本人確認してもらう
+        const res = await fetch(WEBAPP_URL + '?action=preregister', {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ ref: ref, accessToken: liff.getAccessToken() }),
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || 'preregister failed');
+
+        if (result.alreadyFriend) {
+          setStatus('いつも応援ありがとうございます。既に友だち登録済みです。');
+          btnEl.style.display = 'none';
+        } else {
+          setStatus('ボタンから友だち追加をお願いします。');
+          btnEl.style.display = 'inline-block';
+        }
+      } catch (err) {
+        // うまくいかなくても友だち追加だけはできるように、ボタンは出しておく
+        setStatus('読み込みに時間がかかっています。下のボタンから友だち追加をお願いします。');
+        btnEl.style.display = 'inline-block';
+        console.error(err);
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>
